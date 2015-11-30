@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 import codecs
-from collections import namedtuple
+from collections import namedtuple, OrderedDict
 import datetime
 from itertools import groupby
 import os
@@ -18,6 +18,7 @@ STRING_INSIDE_AD_TABLE = (
     "Obavezno prvo pročitajte uputstvo za "
     "bezbednu kupoprodaju preko malih oglasa."
 )
+INDENT = " " * 4
 DATA_FOLDER_NAME = 'mobilnisvet_ads'
 
 
@@ -29,6 +30,10 @@ AdInfo = namedtuple('AdInfo', [
     'contact_number',
     'date'
 ])
+
+
+def _ad_info_json_object_hook(d):
+    return namedtuple('AdInfo', d.keys())(*d.values())
 
 
 def get_html_string(url):
@@ -112,12 +117,59 @@ def write_data(data, filename=None, folder=None):
     filepath = os.path.join(folder, filename)
     with codecs.open(filepath, 'w', encoding='utf-8') as f:
         simplejson.dump(data, f, ensure_ascii=False, indent=4)
+    return filepath
+
+
+def load_file(filepath):
+    with codecs.open(filepath, 'r', encoding='utf-8') as f:
+        data = simplejson.load(f, object_pairs_hook=OrderedDict)
+        ads = [_ad_info_json_object_hook(e) for e in data]
+        return ads
+
+
+def get_previous_ads_file():
+    folder = next(BaseDirectory.load_data_paths(DATA_FOLDER_NAME))
+    files = sorted(os.listdir(folder), reverse=True)
+    if len(files) == 0:
+        return None
+
+    newest_file = files[0]
+    filepath = os.path.join(folder, newest_file)
+    return filepath
+
+
+def print_ads(ads):
+    for ad in ads:
+        print(INDENT, ad.title)
+        print(INDENT, ad.price)
+        print(INDENT, ad.text)
+        print(INDENT, "{}  {}".format(ad.date, ad.contact_number))
+        print()
+
+
+def show_diff(all_old_ads, all_new_ads):
+    old_ads = [x for x in all_old_ads if x not in all_new_ads]
+    new_ads = [x for x in all_new_ads if x not in all_old_ads]
+    print("OLD ADS:")
+    print_ads(old_ads)
+    print("\n\n")
+    print("NEW ADS:")
+    print_ads(new_ads)
 
 
 def main():
     ads = get_ads(get_html_string(URL))
-    ad_gen = remove_duplicates(ads)
-    write_data(list(ad_gen))
+    all_new_ads = list(remove_duplicates(ads))
+
+    previous_ads_file = get_previous_ads_file()
+    if previous_ads_file is None:
+        print("First run")
+    else:
+        all_old_ads = load_file(previous_ads_file)
+        show_diff(all_old_ads, all_new_ads)
+
+    write_data(all_new_ads)
+
 
 if __name__ == '__main__':
     main()
