@@ -1,18 +1,25 @@
 #!/usr/bin/env python3
 
+import codecs
 from collections import namedtuple
+import datetime
 from itertools import groupby
+import os
 import random
 
 from bs4 import BeautifulSoup
 from natsort import natsorted
 import requests
+import simplejson
+from xdg import BaseDirectory
 
 URL = 'http://www.mobilnisvet.com/mobilni-malioglasi'
 STRING_INSIDE_AD_TABLE = (
     "Obavezno prvo pročitajte uputstvo za "
     "bezbednu kupoprodaju preko malih oglasa."
 )
+DATA_FOLDER_NAME = 'mobilnisvet_ads'
+
 
 AdInfo = namedtuple('AdInfo', [
     'title',
@@ -90,16 +97,27 @@ def remove_duplicates(ads):
                 yield ad
 
 
+def get_default_filename():
+    d = datetime.datetime.utcnow()
+    filename = "ads-{time}.json".format(time=d.strftime("%Y-%m-%d--%H-%M-%S"))
+    return filename
+
+
+def write_data(data, filename=None, folder=None):
+    if filename is None:
+        filename = get_default_filename()
+    if folder is None:
+        folder = BaseDirectory.save_data_path(DATA_FOLDER_NAME)
+
+    filepath = os.path.join(folder, filename)
+    with codecs.open(filepath, 'w', encoding='utf-8') as f:
+        simplejson.dump(data, f, ensure_ascii=False, indent=4)
+
+
 def main():
     ads = get_ads(get_html_string(URL))
     ad_gen = remove_duplicates(ads)
-    for title, ads in groupby(ad_gen, lambda x: x.title):
-        print(title)
-        for ad in ads:
-            print("\t{}  {}".format(ad.price, ad.text))
-            print("\t\t{}  {}".format(ad.date, ad.contact_number))
-        print()
-
+    write_data(list(ad_gen))
 
 if __name__ == '__main__':
     main()
