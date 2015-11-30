@@ -1,0 +1,5 @@
+beautifulsoup4
+natsort
+pyxdg
+requests
+simplejson
