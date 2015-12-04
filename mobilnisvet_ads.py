@@ -148,8 +148,19 @@ def print_ads(ads):
 
 
 def show_diff(all_old_ads, all_new_ads):
-    old_ads = [x for x in all_old_ads if x not in all_new_ads]
-    new_ads = [x for x in all_new_ads if x not in all_old_ads]
+    def predicate(e1, e2):
+        return (
+            e1.title == e2.title and
+            e1.price == e2.price and
+            e1.text == e2.text and
+            e1.contact_number == e2.contact_number
+        )
+
+    def contains(x, l):
+        return next((i for i in l if predicate(i, x)), None) is not None
+
+    old_ads = [x for x in all_old_ads if not contains(x, all_new_ads)]
+    new_ads = [x for x in all_new_ads if not contains(x, all_old_ads)]
     print("OLD ADS:")
     print_ads(old_ads)
     print("\n\n")
